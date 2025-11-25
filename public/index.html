@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WrapMeApp - How to layer up and stay warm this winter!">
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)">
+    <title>WrapMeApp - What to Wear</title>
+    <link rel="stylesheet" href="/css/style.css?v=1.9.2">
+</head>
+<body>
+    <div class="screen active" id="ageScreen">
+        <h1 class="question">How old are you?</h1>
+        <div class="options" data-selection="age">
+            <button class="option" data-age="infant">0-2</button>
+            <button class="option" data-age="child">3-12</button>
+            <button class="option" data-age="teen">13-17</button>
+            <button class="option" data-age="adult">18-64</button>
+            <button class="option" data-age="elderly">65+</button>
+        </div>
+    </div>
+
+    <div class="screen" id="genderScreen">
+        <h1 class="question">Gender</h1>
+        <div class="options" data-selection="gender">
+            <button class="option" data-gender="male">Male</button>
+            <button class="option" data-gender="female">Female</button>
+        </div>
+    </div>
+
+    <div class="screen" id="tempScreen">
+        <div id="profileDisplay" class="profile-display-large hidden">
+            <span id="profileText"></span>
+            <button class="profile-change-btn" id="changeProfileBtn" title="Change age/gender">Change</button>
+        </div>
+
+        <div class="location-section">
+            <label for="addressInput" class="address-label">Enter your address or postcode</label>
+            <div class="address-input-group">
+                <input
+                    type="text"
+                    id="addressInput"
+                    class="address-input"
+                    placeholder="e.g. SW1A 1AA or London, UK"
+                    aria-label="Address or postcode"
+                >
+                <button class="get-weather-btn-inline" id="getWeatherBtn">Enter</button>
+                <button class="location-icon-btn" id="locationBtn" title="Use my current location">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2C12 2 12 2 12 2C8.13401 2 5 5.13401 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13401 15.866 2 12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="9" r="2.5" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="weather-result hidden" id="weatherResult">
+                <span id="weatherText"></span>
+                <button class="change-location-btn hidden" id="changeLocationBtn" title="Change location">Change</button>
+            </div>
+        </div>
+
+        <div class="location-divider">
+            <span class="divider-text">or set manually</span>
+        </div>
+
+        <div class="temp-display">
+            <span id="tempValue">10</span><span class="temp-unit">°C</span>
+        </div>
+        <input type="range" id="tempSlider" min="-15" max="20" value="10" step="0.5" aria-label="Temperature">
+
+        <button class="continue-btn" id="continueBtn">Continue</button>
+    </div>
+
+    <div class="screen" id="loadingScreen">
+        <div class="loading">Getting your recommendations...</div>
+    </div>
+
+    <div class="screen" id="resultsScreen">
+        <div class="results-container">
+            <button class="info-btn" id="infoBtn" title="View clothing substitutions">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 16V12M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Substitutions
+            </button>
+
+            <div class="text-panel">
+                <div class="weather-info">
+                    <div class="current-temp"><span id="resultTemp">5</span>°C</div>
+                    <div class="alert-level" id="alertLevel">Yellow Alert</div>
+                </div>
+
+                <div class="user-profile-display">
+                    <span id="displayGender">Adult Male</span> · <span id="displayAge">18-64</span>
+                </div>
+
+                <div class="warmth-indicator" id="warmthIndicator"></div>
+                <div id="recommendations"></div>
+
+                <div class="results-disclaimer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">
+                        <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <p>General guidance only. Not medical advice. If you have medical conditions affecting temperature regulation, consult your healthcare provider. <button class="disclaimer-link" id="disclaimerLink">Learn more</button></p>
+                </div>
+
+                <button class="restart-btn" id="restartBtn">Start Over</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="substituteModal" class="substitute-modal">
+        <div class="substitute-modal-content">
+            <div class="substitute-modal-header">
+                <h3 id="substituteModalTitle">Choose Alternative</h3>
+                <button class="modal-close" id="substituteModalCloseBtn" aria-label="Close">&times;</button>
+            </div>
+            <div class="substitute-modal-body" id="substituteModalBody">
+                <!-- Substitute options will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="sourcesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Scientific Sources & References</h2>
+                <button class="modal-close" id="sourcesModalCloseBtn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="medical-disclaimer">
+                    <div class="disclaimer-icon">⚕️</div>
+                    <div class="disclaimer-content">
+                        <h3>Medical Disclaimer</h3>
+                        <p><strong>This tool provides general guidance only and is not medical advice.</strong></p>
+                        <p>If you have any medical conditions affecting your ability to regulate body temperature (including but not limited to diabetes, thyroid disorders, cardiovascular disease, peripheral vascular disease, Raynaud's disease, or are taking medications that affect circulation), please consult your healthcare provider for personalized advice about cold weather protection.</p>
+                        <p>Pregnant women, individuals with reduced mobility, and those recovering from illness should also seek medical guidance.</p>
+                        <p><strong>In case of cold-related emergencies (hypothermia, frostbite), seek immediate medical attention.</strong></p>
+                    </div>
+                </div>
+
+                <section class="sources-section">
+                    <h3>What is CLO?</h3>
+                    <p>CLO (Clothing Insulation Unit) is the scientific measure of thermal insulation provided by clothing. 1 CLO = 0.155 m²·K/W, roughly equivalent to a typical business suit.</p>
+                </section>
+
+                <section class="sources-section">
+                    <h3>International Standards</h3>
+                    <div class="source-item">
+                        <strong>ASHRAE Standard 55-2020</strong>
+                        <p>Thermal Environmental Conditions for Human Occupancy. Defines CLO values for common clothing ensembles.</p>
+                        <a href="https://www.ashrae.org/technical-resources/bookstore/standard-55-thermal-environmental-conditions-for-human-occupancy" target="_blank" rel="noopener">ashrae.org</a>
+                    </div>
+                    <div class="source-item">
+                        <strong>ISO 9920:2007</strong>
+                        <p>Ergonomics of the thermal environment — Estimation of thermal insulation and water vapour resistance of a clothing ensemble.</p>
+                        <a href="https://www.iso.org/standard/39257.html" target="_blank" rel="noopener">iso.org</a>
+                    </div>
+                </section>
+
+                <section class="sources-section">
+                    <h3>Medical & Public Health Guidelines</h3>
+                    <div class="source-item">
+                        <strong>UK Health Security Agency (UKHSA)</strong>
+                        <p>Cold Weather Plan 2023. Temperature thresholds and health risk levels for vulnerable populations.</p>
+                        <a href="https://www.gov.uk/government/publications/cold-weather-plan" target="_blank" rel="noopener">gov.uk</a>
+                    </div>
+                    <div class="source-item">
+                        <strong>NHS Cold Weather Guidance</strong>
+                        <p>Recommendations for staying warm and safe in cold weather, including clothing advice for all age groups.</p>
+                        <a href="https://www.nhs.uk/live-well/seasonal-health/keep-warm-keep-well/" target="_blank" rel="noopener">nhs.uk</a>
+                    </div>
+                    <div class="source-item">
+                        <strong>World Health Organization (WHO)</strong>
+                        <p>Housing and health guidelines. Recommendations for indoor and outdoor temperature protection.</p>
+                        <a href="https://www.who.int/publications/i/item/9789241550376" target="_blank" rel="noopener">who.int</a>
+                    </div>
+                </section>
+
+                <section class="sources-section">
+                    <h3>CLO Values for Clothing Items</h3>
+                    <p>Individual garment CLO values are derived from:</p>
+                    <ul class="sources-list">
+                        <li><strong>ASHRAE Handbook - Fundamentals (2021)</strong> - Chapter 9: Thermal Comfort</li>
+                        <li><strong>ISO 9920 Tables</strong> - Standardized insulation values for garments</li>
+                        <li><strong>McCullough et al. (1985)</strong> - "A comprehensive data base for estimating clothing insulation"</li>
+                        <li><strong>Havenith et al. (2015)</strong> - "Temperature and wind effects on clothing insulation"</li>
+                    </ul>
+                </section>
+
+                <section class="sources-section">
+                    <h3>Age & Gender Adjustments</h3>
+                    <div class="source-item">
+                        <strong>Gender Differences</strong>
+                        <p>Women typically feel cold at temperatures ~3°C warmer than men due to differences in metabolic rate and body composition.</p>
+                        <cite>Karjalainen, S. (2012). Thermal comfort and gender: a literature review. Indoor Air, 22(2), 96-109.</cite>
+                    </div>
+                    <div class="source-item">
+                        <strong>Elderly Populations</strong>
+                        <p>Reduced thermoregulation and lower metabolic rates require additional insulation.</p>
+                        <cite>Blatteis, C. M. (2012). Age-dependent changes in temperature regulation. Gerontology, 58(4), 289-295.</cite>
+                    </div>
+                    <div class="source-item">
+                        <strong>Infants & Children</strong>
+                        <p>Higher surface area to body mass ratio results in faster heat loss.</p>
+                        <cite>Sinclair, J. C. (1992). Management of the thermal environment. Neonatal-Perinatal Medicine, 5, 927-945.</cite>
+                    </div>
+                </section>
+
+                <section class="sources-section">
+                    <h3>Algorithm Methodology</h3>
+                    <p>Our recommendation engine uses a modified knapsack algorithm to find optimal clothing combinations that meet temperature-specific CLO requirements while maintaining wearability and practicality.</p>
+                </section>
+
+                <div class="sources-footer">
+                    <p><strong>Last Updated:</strong> November 2024</p>
+                    <p>All recommendations are for guidance only. Individual comfort varies based on activity level, metabolism, wind exposure, and humidity.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="substitutionsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Clothing Substitutions Guide</h2>
+                <button class="modal-close" id="modalCloseBtn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-intro">Don't have the exact item? Here are some alternatives that provide similar warmth.</p>
+
+                <section class="substitution-section">
+                    <h3>Base Layers</h3>
+                    <div class="substitution-item">
+                        <strong>Long-sleeve top</strong>
+                        <span class="arrow">↔</span>
+                        <span>Long-sleeve shirt, thermal underwear top, fitted jumper</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Thermal underwear</strong>
+                        <span class="arrow">↔</span>
+                        <span>Two regular long-sleeve tops, compression wear, fitted base layer</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>T-shirt</strong>
+                        <span class="arrow">↔</span>
+                        <span>Light cotton top, polo shirt, short-sleeve shirt</span>
+                    </div>
+                </section>
+
+                <section class="substitution-section">
+                    <h3>Mid Layers</h3>
+                    <div class="substitution-item">
+                        <strong>Vest-top</strong>
+                        <span class="arrow">↔</span>
+                        <span>Light cardigan, thin jumper, sleeveless jacket</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Jumper</strong>
+                        <span class="arrow">↔</span>
+                        <span>Hoodie, thick cardigan, fleece, sweatshirt</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Hoodie</strong>
+                        <span class="arrow">↔</span>
+                        <span>Jumper + scarf, thick cardigan, fleece jacket</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Turtleneck</strong>
+                        <span class="arrow">↔</span>
+                        <span>Regular jumper + scarf, high-neck top, thick base layer</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Fleece</strong>
+                        <span class="arrow">↔</span>
+                        <span>Thick jumper, quilted vest, insulated shirt</span>
+                    </div>
+                </section>
+
+                <section class="substitution-section">
+                    <h3>Outer Layers</h3>
+                    <div class="substitution-item">
+                        <strong>Light jacket</strong>
+                        <span class="arrow">↔</span>
+                        <span>Cardigan, blazer, denim jacket, windbreaker</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Winter coat</strong>
+                        <span class="arrow">↔</span>
+                        <span>Puffer jacket, parka, duffle coat, heavy raincoat + jumper</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Heavy winter coat</strong>
+                        <span class="arrow">↔</span>
+                        <span>Two jackets layered, coat + thick jumper, insulated parka</span>
+                    </div>
+                </section>
+
+                <section class="substitution-section">
+                    <h3>Accessories</h3>
+                    <div class="substitution-item">
+                        <strong>Hat</strong>
+                        <span class="arrow">↔</span>
+                        <span>Beanie, cap, hood, headband covering ears</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Warm hat</strong>
+                        <span class="arrow">↔</span>
+                        <span>Thick beanie, trapper hat, wool cap, balaclava</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Gloves</strong>
+                        <span class="arrow">↔</span>
+                        <span>Mittens (warmer), fingerless gloves + pockets, thick socks on hands (emergency)</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Mittens</strong>
+                        <span class="arrow">↔</span>
+                        <span>Thick gloves + hand warmers, gloves in pockets, double gloves</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Scarf</strong>
+                        <span class="arrow">↔</span>
+                        <span>Neck warmer, snood, hoodie with drawstrings, high collar jacket</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Thick scarf</strong>
+                        <span class="arrow">↔</span>
+                        <span>Two scarves, blanket scarf, scarf + neck warmer</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Thermal socks</strong>
+                        <span class="arrow">↔</span>
+                        <span>Two pairs of regular socks, wool socks, thick hiking socks</span>
+                    </div>
+                    <div class="substitution-item">
+                        <strong>Balaclava</strong>
+                        <span class="arrow">↔</span>
+                        <span>Hat + scarf combination, ski mask, thick hood + scarf</span>
+                    </div>
+                </section>
+
+                <section class="substitution-section">
+                    <h3>General Tips</h3>
+                    <div class="substitution-tip">
+                        <strong>Missing an outer layer?</strong> Add an extra mid-layer instead (e.g. wear two jumpers).
+                    </div>
+                    <div class="substitution-tip">
+                        <strong>No thermal underwear?</strong> Wear tights or leggings with a long-sleeve top underneath.
+                    </div>
+                    <div class="substitution-tip">
+                        <strong>In an emergency:</strong> Multiple thin layers equal one thick layer. Use what you have and layer up.
+                    </div>
+                    <div class="substitution-tip">
+                        <strong>Materials matter.</strong> Wool and synthetics are warmer than cotton. Avoid cotton in very cold weather.
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/js/app.js?v=1.9.2"></script>
+</body>
+</html>

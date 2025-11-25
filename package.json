@@ -1,0 +1,27 @@
+{
+  "name": "wrapmeapp",
+  "version": "1.0.0",
+  "description": "WrapMeApp - How to layer up and stay warm this winter!",
+  "main": "public/index.html",
+  "scripts": {
+    "serve": "firebase serve",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/wrapmeapp.git"
+  },
+  "keywords": [
+    "weather",
+    "clothing",
+    "recommendations",
+    "cold-weather",
+    "firebase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  }
+}

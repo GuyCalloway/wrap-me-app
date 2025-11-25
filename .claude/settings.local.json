@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(npx firebase-tools serve)",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(node validation-tests.js:*)",
+      "Bash(node temperature-comparison-test.js:*)",
+      "Bash(node interpolation-verification.js:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
