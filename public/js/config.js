@@ -113,21 +113,21 @@ export const CLOTHING_ITEMS = {
       zone: 'core'
     },
     'coat': {
-      clo: 0.4,
+      clo: 0.5,
       name: 'Coat',
       file: 'outer/coat.png',
       category: 'outer',
       zone: 'core'
     },
     'winter-coat': {
-      clo: 0.52,
+      clo: 0.72,
       name: 'Winter coat',
       file: 'outer/winter-coat.png',
       category: 'outer',
       zone: 'core'
     },
     'heavy-winter-coat': {
-      clo: 0.65,
+      clo: 0.85,
       name: 'Heavy winter coat',
       file: 'outer/winter-coat.png',
       category: 'outer',

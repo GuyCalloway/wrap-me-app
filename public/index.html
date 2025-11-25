@@ -1,14 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="WrapMeApp - How to layer up and stay warm this winter!">
-    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)">
-    <title>WrapMeApp - What to Wear</title>
-    <link rel="stylesheet" href="/css/style.css?v=1.9.2">
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="WrapMeApp - How to layer up and stay warm this winter!">
+        <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
+        <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)">
+        
+        
+        <!-- Open Graph -->
+        <meta property="og:title" content="WrapMeApp">
+        <meta property="og:description" content="How to layer up and stay warm this winter!">
+        <meta property="og:image" content="https://raw.githubusercontent.com/GuyCalloway/wrap-me-app/main/public/images/istockphoto-810899594-612x612.png">
+        <meta property="og:image:width" content="612">
+        <meta property="og:image:height" content="612">
+        <meta property="og:url" content="https://winter-wrap.web.app/">
+        <meta property="og:type" content="website">
+        
+        
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="WrapMeApp">
+        <meta name="twitter:description" content="How to layer up and stay warm this winter!">
+        <meta name="twitter:image" content="https://raw.githubusercontent.com/GuyCalloway/wrap-me-app/main/public/images/istockphoto-810899594-612x612.png">
+        
+        
+        <title>WrapMeApp</title>
+        <link rel="stylesheet" href="/css/style.css?v=1.9.2">
+        </head>
 <body>
     <div class="screen active" id="ageScreen">
         <h1 class="question">How old are you?</h1>
@@ -77,13 +96,6 @@
 
     <div class="screen" id="resultsScreen">
         <div class="results-container">
-            <button class="info-btn" id="infoBtn" title="View clothing substitutions">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                    <path d="M12 16V12M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Substitutions
-            </button>
 
             <div class="text-panel">
                 <div class="weather-info">
@@ -106,6 +118,17 @@
                 </div>
 
                 <button class="restart-btn" id="restartBtn">Start Over</button>
+
+                <br><br>
+
+                <button class="info-btn" id="infoBtn" title="View clothing substitutions">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 16V12M12 8H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Substitutions
+                </button>
+
             </div>
         </div>
     </div>
