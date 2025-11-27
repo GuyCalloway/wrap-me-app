@@ -49,7 +49,7 @@ export const CLOTHING_ITEMS = {
       zone: 'core'
     },
     'thermal-leggings': {
-      clo: 0.15,
+      clo: 0.35,
       name: 'Thermal leggings',
       file: 'base/thermal-leggings.png',
       category: 'base',
@@ -112,6 +112,13 @@ export const CLOTHING_ITEMS = {
       clo: 0.4,
       name: 'Thick jumper',
       file: 'mid/jumper.png',
+      category: 'mid',
+      zone: 'core'
+    },
+    'thick-shirt': {
+      clo: 0.35,
+      name: 'Thick shirt',
+      file: 'mid/thick-shirt.svg',
       category: 'mid',
       zone: 'core'
     }
@@ -352,16 +359,18 @@ export const PRACTICALITY_WEIGHTS = {
 // Common item frequency (likelihood of items being in people's homes)
 export const ITEM_FREQUENCY = {
   // More common = higher score (t-shirt prioritized as most common base layer)
-  't-shirt': 1.3,              // Very common household item - boosted
-  'long-sleeve-top': 1.0,      // Common household item
-  'jumper': 1.0,               // Very common household item
+  't-shirt': 1.3, 
+  'vest': 1.0,             // Very common household item - boosted
+  'long-sleeve-top': 0.9,      // Common household item
+  'jumper': 1.2,               // Very common household item
   'coat': 0.8,
   'vest-top': 0.6,
-  'cardigan': 0.7,
+  'cardigan': 0.5,
   'hoodie': 0.9,               // Common household item - boosted slightly
   'thermal-top': 0.5,
-  'fleece': 0.6,
-  'thick-jumper': 0.7,
+  'fleece': 1.0,
+  'thick-jumper': 0.9,
+  'thick-shirt': 0.8,
   'turtleneck': 0.5,
   'light-jacket': 0.7,
   'winter-coat': 0.6,

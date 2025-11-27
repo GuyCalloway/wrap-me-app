@@ -207,6 +207,7 @@ function updateTempScreenProfile() {
 function changeProfile() {
     // Reset warmth adjustment when changing profile
     state.warmthAdjustment = 0;
+    saveWarmthPreference();
     showScreen('ageScreen');
 }
 
@@ -250,6 +251,10 @@ function setAge(category, event) {
     state.ageCategory = category;
     state.age = ages[category];
 
+    // Reset warmth adjustment when changing age
+    state.warmthAdjustment = 0;
+    saveWarmthPreference();
+
     if (event && event.target) {
         selectButton(event.target);
     }
@@ -270,6 +275,10 @@ function setAge(category, event) {
 
 function setGender(gender, event) {
     state.gender = gender;
+
+    // Reset warmth adjustment when changing gender
+    state.warmthAdjustment = 0;
+    saveWarmthPreference();
 
     if (event && event.target) {
         selectButton(event.target);
@@ -677,15 +686,21 @@ function displayRecommendation(recommendation) {
     }
 
     // Add layering instruction after all clothing items
-    textHtml += '<div class="layering-info-box">Wear all items together, layered on top of each other</div>';
+    textHtml += '<div class="layering-info-box">';
+    textHtml += '<svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">';
+    textHtml += '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>';
+    textHtml += '<path d="M12 16v-4m0-4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+    textHtml += '</svg>';
+    textHtml += 'Wear all items, layered together, in order';
+    textHtml += '</div>';
 
     // Add calibration slider
     textHtml += '<div class="warmth-calibration">';
     textHtml += '<label class="calibration-label">Not quite right?</label>';
     textHtml += '<input type="range" id="warmthSlider" class="warmth-slider" min="-2" max="2" value="' + state.warmthAdjustment + '" step="1" aria-label="Warmth calibration">';
     textHtml += '<div class="calibration-scale">';
-    textHtml += '<span class="scale-label">More layers</span>';
     textHtml += '<span class="scale-label">Less layers</span>';
+    textHtml += '<span class="scale-label">More layers</span>';
     textHtml += '</div>';
     textHtml += '</div>';
 
@@ -742,6 +757,9 @@ function buildWarmthIndicator(recommendation) {
         statusClass = currentCLO < optimalCLO ? 'status-cold' : 'status-warm';
     }
 
+    // Determine label for optimal marker
+    const optimalLabel = state.warmthAdjustment !== 0 ? 'Custom' : 'Optimal';
+
     return `
         <div class="warmth-indicator-new">
             <div class="warmth-header">
@@ -752,7 +770,7 @@ function buildWarmthIndicator(recommendation) {
                 <div class="warmth-bar-fill" style="width: ${Math.min(100, Math.max(0, currentPercent))}%; background: ${barColor};"></div>
                 <div class="warmth-optimal-marker" style="left: ${optimalPercent}%;">
                     <div class="optimal-line"></div>
-                    <div class="optimal-label">Optimal</div>
+                    <div class="optimal-label">${optimalLabel}</div>
                 </div>
             </div>
 
@@ -816,6 +834,15 @@ function updateProfileDisplay() {
         'very-elderly': '80+'
     };
 
+    const ageCategoryLabels = {
+        'infant': 'Infant',
+        'child': 'Child',
+        'teen': 'Teen',
+        'adult': 'Adult',
+        'elderly': 'Elderly',
+        'very-elderly': 'Very Elderly'
+    };
+
     const genderDisplay = {
         'male': 'Male',
         'female': 'Female',
@@ -823,10 +850,12 @@ function updateProfileDisplay() {
     };
 
     const ageRange = ageRanges[state.ageCategory] || '18-64';
+    const ageCategoryLabel = ageCategoryLabels[state.ageCategory] || 'Adult';
     const gender = genderDisplay[state.gender] || '';
 
     document.getElementById('displayAge').textContent = ageRange;
-    document.getElementById('displayGender').textContent = gender || ageRange;
+    // If we have gender (male/female), show that; otherwise show age category label
+    document.getElementById('displayGender').textContent = gender || ageCategoryLabel;
 }
 
 // =======================

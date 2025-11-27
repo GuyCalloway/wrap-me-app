@@ -633,6 +633,31 @@ function selectDiverseCombinations(validCombinations) {
 }
 
 /**
+ * Count common household items in a combination
+ * These are items most people already own: t-shirt, jumper, hoodie, fleece, coat, thick jumper, thick shirt, light jacket
+ */
+function countCommonItems(combination) {
+  const veryCommonItems = ['t-shirt', 'jumper', 'hoodie', 'fleece', 'coat', 'long-sleeve-top', 'thick-jumper', 'thick-shirt', 'light-jacket'];
+  let count = 0;
+
+  const allItems = [
+    ...combination.core,
+    ...combination.head,
+    ...combination.hands,
+    ...combination.neck,
+    ...combination.feet
+  ];
+
+  for (const item of allItems) {
+    if (veryCommonItems.includes(item.key)) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+/**
  * Main function: Get clothing recommendations
  */
 export function getRecommendations(temp, ageCategory, gender, warmthAdjustment = 0) {
@@ -640,12 +665,12 @@ export function getRecommendations(temp, ageCategory, gender, warmthAdjustment =
   let requirements = getAdjustedRequirements(temp, ageCategory, gender);
 
   // Apply heat calibration:
-  // Negative values = "run cold" (need more clothing, increase CLO)
-  // Positive values = "run hot" (need less clothing, decrease CLO)
-  // Range: -2 (very cold) to +2 (very hot)
+  // Positive values = "more layers" (increase target CLO requirement)
+  // Negative values = "less layers" (decrease target CLO requirement)
+  // Range: -2 (fewer layers) to +2 (more layers)
   // ±2 = ±0.5 CLO (major item like coat), ±1 = ±0.25 CLO (minor item like t-shirt/jumper)
   if (warmthAdjustment !== 0) {
-    const adjustment = -warmthAdjustment * 0.25;
+    const adjustment = warmthAdjustment * 0.25;
     requirements = {
       core: {
         min: Math.max(0, requirements.core.min + adjustment),
@@ -686,10 +711,23 @@ export function getRecommendations(temp, ageCategory, gender, warmthAdjustment =
     combo.targetOptimal = requirements.core.optimal;
     combo.practicalityScore = calculatePracticalityScore(combo);
     combo.requirements = requirements;
+
+    // Calculate "common items bonus" for tie-breaking
+    // Prioritize combinations with very common household items
+    combo.commonItemsCount = countCommonItems(combo);
   }
 
-  // 5. Sort by practicality score (descending)
-  validCombinations.sort((a, b) => b.practicalityScore - a.practicalityScore);
+  // 5. Sort by practicality score (descending), with tie-breaker for common items
+  validCombinations.sort((a, b) => {
+    const scoreDiff = b.practicalityScore - a.practicalityScore;
+
+    // If scores are very close (within 5 points), prefer combination with more common items
+    if (Math.abs(scoreDiff) <= 5) {
+      return b.commonItemsCount - a.commonItemsCount;
+    }
+
+    return scoreDiff;
+  });
 
   // 6. Select 3 diverse combinations
   if (validCombinations.length === 0) {

@@ -318,6 +318,15 @@ input[type="range"]::-moz-range-thumb {
     margin-bottom: 1.25rem;
     border-left: 2px solid var(--border);
     line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.layering-info-box .info-icon {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    opacity: 0.8;
 }
 
 .layer-section {
@@ -2000,7 +2009,7 @@ a,
     width: 80%;
     max-width: 300px;
     height: 4px;
-    background: linear-gradient(to right, #fca5a5, #d4d4d8, #93c5fd);
+    background: linear-gradient(to right, #93c5fd, #d4d4d8, #fca5a5);
     outline: none;
     border-radius: 2px;
     margin: 0 auto;
@@ -2051,7 +2060,7 @@ a,
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
     .warmth-slider {
-        background: linear-gradient(to right, #f87171, #52525b, #3b82f6);
+        background: linear-gradient(to right, #3b82f6, #52525b, #f87171);
     }
 }
 
