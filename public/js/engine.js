@@ -1,6 +1,6 @@
 /**
  * WrapMeApp - Calculation Engine v1.9.0
- * Mathematical warmth calculation based on CLO values
+ * Warmth calculation guided by CLO values (approximate)
  *
  * v1.9.0: SMOOTH TEMPERATURE REQUIREMENTS - Linear interpolation for CLO requirements
  *         COMPLETE FIX: -15°C and -1°C now generate different recommendations
@@ -153,7 +153,7 @@ function getAllItems() {
  * Find all combinations that meet CLO requirements
  * Uses dynamic programming / knapsack approach
  */
-export function findCombinations(requirements, maxCombinations = 50) {
+export function findCombinations(requirements, maxCombinations = 50, temp = 10, ageCategory = 'adult') {
   const allItems = getAllItems();
   const combinations = [];
 
@@ -167,19 +167,12 @@ export function findCombinations(requirements, maxCombinations = 50) {
   };
 
   // Generate combinations for each zone
-  const coreCombos = generateZoneCombinations(itemsByZone.core, requirements.core);
-  const headCombos = generateZoneCombinations(itemsByZone.head, requirements.head);
-  const handsCombos = generateZoneCombinations(itemsByZone.hands, requirements.hands);
-  const neckCombos = generateZoneCombinations(itemsByZone.neck, requirements.neck);
-  const feetCombos = generateZoneCombinations(itemsByZone.feet, requirements.feet);
+  const coreCombos = generateZoneCombinations(itemsByZone.core, requirements.core, temp, ageCategory);
+  const headCombos = generateZoneCombinations(itemsByZone.head, requirements.head, temp, ageCategory);
+  const handsCombos = generateZoneCombinations(itemsByZone.hands, requirements.hands, temp, ageCategory);
+  const neckCombos = generateZoneCombinations(itemsByZone.neck, requirements.neck, temp, ageCategory);
+  const feetCombos = generateZoneCombinations(itemsByZone.feet, requirements.feet, temp, ageCategory);
 
-  console.log(`Generated combinations per zone:`, {
-    core: coreCombos.length,
-    head: headCombos.length,
-    hands: handsCombos.length,
-    neck: neckCombos.length,
-    feet: feetCombos.length
-  });
 
   // Combine all zones
   for (const core of coreCombos.slice(0, 20)) {  // Limit to top 20 core combinations
@@ -215,10 +208,17 @@ export function findCombinations(requirements, maxCombinations = 50) {
 /**
  * Generate combinations for a single zone
  * For core zone: Build from t-shirt as foundation, allow layering thermals on top
+ * Allow up to 3 base layers for vulnerable populations in extreme cold
  */
-function generateZoneCombinations(items, requirement) {
+function generateZoneCombinations(items, requirement, temp = 10, ageCategory = 'adult') {
   const combinations = [];
   const { min, max, optimal } = requirement;
+
+  // Determine max base layers based on temperature and age
+  // Allow 3 base layers for vulnerable populations (elderly, very-elderly, infant, child) in cold weather (≤5°C)
+  const isVulnerable = ['elderly', 'very-elderly', 'infant', 'child'].includes(ageCategory);
+  const isCold = temp <= 5;
+  const maxBaseLayers = (isVulnerable && isCold) ? 3 : 2;
 
   // If no requirement (min = max = 0), return empty combination
   if (max === 0) {
@@ -246,15 +246,15 @@ function generateZoneCombinations(items, requirement) {
       const outerCount = currentItems.filter(i => i.category === 'outer').length;
 
       // NEW LAYERING RULES:
-      // - Can have up to 2 base layers (t-shirt + thermal)
-      // - If 2 base layers, must be t-shirt + one other (thermal/long-sleeve)
+      // - Can have up to 2-3 base layers depending on vulnerability and temperature
+      // - If 2+ base layers, must include t-shirt as foundation
       // - max 2 mid, max 1 outer
-      if (baseCount > 2 || midCount > 2 || outerCount > 1) {
+      if (baseCount > maxBaseLayers || midCount > 2 || outerCount > 1) {
         return; // Skip this branch
       }
 
-      // If we have 2 base layers, one MUST be t-shirt
-      if (baseCount === 2) {
+      // If we have 2+ base layers, one MUST be t-shirt
+      if (baseCount >= 2) {
         const hasTShirt = baseItems.some(item => item.key === 't-shirt');
         if (!hasTShirt) {
           return; // Skip - must have t-shirt as foundation
@@ -287,8 +287,8 @@ function generateZoneCombinations(items, requirement) {
         const midCount = currentItems.filter(it => it.category === 'mid').length;
         const outerCount = currentItems.filter(it => it.category === 'outer').length;
 
-        // Allow up to 2 base layers (t-shirt + thermal)
-        if (nextItem.category === 'base' && baseCount >= 2) continue;
+        // Allow up to 2-3 base layers depending on vulnerability and temperature
+        if (nextItem.category === 'base' && baseCount >= maxBaseLayers) continue;
 
         // If adding second base layer, ensure we already have t-shirt OR we're adding t-shirt
         if (nextItem.category === 'base' && baseCount === 1) {
@@ -315,7 +315,7 @@ function generateZoneCombinations(items, requirement) {
     console.log(`Available items:`, items.length);
 
     // Calculate maximum achievable CLO
-    const maxBase = items.filter(i => i.category === 'base').slice(0, 2).reduce((sum, i) => sum + i.clo, 0);
+    const maxBase = items.filter(i => i.category === 'base').slice(0, maxBaseLayers).reduce((sum, i) => sum + i.clo, 0);
     const maxMid = items.filter(i => i.category === 'mid').slice(0, 2).reduce((sum, i) => sum + i.clo, 0);
     const maxOuter = items.filter(i => i.category === 'outer').slice(0, 1).reduce((sum, i) => sum + i.clo, 0);
     const maxAchievable = maxBase + maxMid + maxOuter;
@@ -334,11 +334,16 @@ function generateZoneCombinations(items, requirement) {
  * Returns true if combination makes sense, false if impractical
  * If debug=true, returns {isValid, reason}
  */
-export function isValidCombination(combination, debug = false, temp = 10) {
+export function isValidCombination(combination, debug = false, temp = 10, ageCategory = 'adult') {
   const core = combination.core;
 
   const reject = (reason) => debug ? { isValid: false, reason } : false;
   const accept = () => debug ? { isValid: true } : true;
+
+  // Determine max base layers based on temperature and age
+  const isVulnerable = ['elderly', 'very-elderly', 'infant', 'child'].includes(ageCategory);
+  const isCold = temp <= 5;
+  const maxBaseLayers = (isVulnerable && isCold) ? 3 : 2;
 
   // Get CLO values by category
   const baseCLO = core.filter(item => item.category === 'base').reduce((sum, item) => sum + item.clo, 0);
@@ -414,18 +419,19 @@ export function isValidCombination(combination, debug = false, temp = 10) {
     }
   }
 
-  // Rule 8: Maximum TWO base layers (t-shirt + thermal/long-sleeve)
+  // Rule 8: Maximum 2-3 base layers depending on vulnerability and temperature
   // Allow layering thermal ON TOP of t-shirt for extra warmth
+  // For vulnerable populations in cold weather (≤5°C), allow up to 3 base layers
   const baseItems = core.filter(item => item.category === 'base');
-  if (baseItems.length > 2) {
-    return reject('Too many base layers (>2)');
+  if (baseItems.length > maxBaseLayers) {
+    return reject(`Too many base layers (>${maxBaseLayers})`);
   }
 
-  // If 2 base layers, one MUST be t-shirt
-  if (baseItems.length === 2) {
+  // If 2+ base layers, one MUST be t-shirt
+  if (baseItems.length >= 2) {
     const hasTShirt = baseItems.some(item => item.key === 't-shirt');
     if (!hasTShirt) {
-      return reject('2 base layers without t-shirt foundation');
+      return reject(`${baseItems.length} base layers without t-shirt foundation`);
     }
   }
 
@@ -629,17 +635,41 @@ function selectDiverseCombinations(validCombinations) {
 /**
  * Main function: Get clothing recommendations
  */
-export function getRecommendations(temp, ageCategory, gender) {
+export function getRecommendations(temp, ageCategory, gender, warmthAdjustment = 0) {
   // 1. Get adjusted requirements
-  const requirements = getAdjustedRequirements(temp, ageCategory, gender);
+  let requirements = getAdjustedRequirements(temp, ageCategory, gender);
+
+  // Apply heat calibration:
+  // Negative values = "run cold" (need more clothing, increase CLO)
+  // Positive values = "run hot" (need less clothing, decrease CLO)
+  // Range: -2 (very cold) to +2 (very hot)
+  // ±2 = ±0.5 CLO (major item like coat), ±1 = ±0.25 CLO (minor item like t-shirt/jumper)
+  if (warmthAdjustment !== 0) {
+    const adjustment = -warmthAdjustment * 0.25;
+    requirements = {
+      core: {
+        min: Math.max(0, requirements.core.min + adjustment),
+        max: requirements.core.max + adjustment,
+        optimal: requirements.core.optimal + adjustment
+      },
+      head: requirements.head,
+      hands: requirements.hands,
+      neck: requirements.neck,
+      feet: requirements.feet,
+      alert: requirements.alert,
+      warning: requirements.warning,
+      maxExposure: requirements.maxExposure,
+      riskLevel: requirements.riskLevel
+    };
+  }
 
   // 2. Find all valid combinations
-  const combinations = findCombinations(requirements);
+  const combinations = findCombinations(requirements, 50, temp, ageCategory);
 
   // 3. Filter out impractical combinations
   let rejectionReasons = {};
   const validCombinations = combinations.filter(combo => {
-    const validationResult = isValidCombination(combo, true, temp); // Pass debug flag and temperature
+    const validationResult = isValidCombination(combo, true, temp, ageCategory); // Pass debug flag, temperature, and age
     if (!validationResult.isValid) {
       rejectionReasons[validationResult.reason] = (rejectionReasons[validationResult.reason] || 0) + 1;
     }
@@ -662,8 +692,6 @@ export function getRecommendations(temp, ageCategory, gender) {
   validCombinations.sort((a, b) => b.practicalityScore - a.practicalityScore);
 
   // 6. Select 3 diverse combinations
-  console.log(`Found ${validCombinations.length} valid combinations out of ${combinations.length} total`);
-
   if (validCombinations.length === 0) {
     console.error('ERROR: No valid combinations found! Requirements may be too strict.');
     console.log('Requirements:', requirements);
@@ -672,12 +700,6 @@ export function getRecommendations(temp, ageCategory, gender) {
   }
 
   const diverseCombos = selectDiverseCombinations(validCombinations);
-
-  console.log(`Returning ${diverseCombos.length} diverse combinations:`);
-  diverseCombos.forEach((combo, i) => {
-    const allItems = [...combo.core, ...combo.head, ...combo.hands, ...combo.neck, ...combo.feet];
-    console.log(`Option ${i + 1} (${allItems.length} items):`, combo.core.map(item => `${item.name}`).join(', '));
-  });
 
   return diverseCombos;
 }
@@ -787,10 +809,8 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
 
   newZoneItems.push(newItem);
 
-  // Log cross-zone substitution
-  if (oldZone !== newZone) {
-    console.log(`🔄 Cross-zone substitution: ${oldItem.name} (${oldZone}) → ${newItem.name} (${newZone})`);
-  }
+  // Cross-zone substitution handling
+  // (no logging needed - visual feedback in UI)
 
   // Smart substitution: Adjust accessories based on outer layer warmth
   if (oldItem.category === 'outer' && newItem.category === 'outer') {
@@ -801,8 +821,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
     const isUpgradingToHeavyCoat = newItem.clo >= 0.45;
 
     if (cloChange >= 0.15 || isUpgradingToHeavyCoat) {
-      console.log(`🧥 Checking if accessories need removal (new coat: ${newItem.name}, ${newItem.clo} CLO)`);
-
       // Calculate current CLO for each zone
       const coreCLO = updated.core.reduce((sum, item) => sum + item.clo, 0);
       const headCLO = updated.head.reduce((sum, item) => sum + item.clo, 0);
@@ -845,7 +863,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
           const idx = zoneArray.findIndex(item => item.key === accessory.item.key);
           if (idx !== -1) {
             zoneArray.splice(idx, 1);
-            console.log(`✂️ Removed ${accessory.item.name} (no longer needed with heavier coat)`);
             // Update current CLO (rough approximation)
             currentCoreCLO -= accessory.item.clo * 0.3; // Accessories contribute less to core warmth
           }
@@ -894,7 +911,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
 
         // Add the accessories
         for (const accessory of accessoriesToAdd) {
-          console.log(`➕ Added ${accessory.item.name} (needed with lighter coat)`);
           if (accessory.zone === 'head') updated.head.push(accessory.item);
           else if (accessory.zone === 'hands') updated.hands.push(accessory.item);
           else if (accessory.zone === 'neck') updated.neck.push(accessory.item);
@@ -916,8 +932,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
 
   // CASE 1: Too warm - remove smallest non-base item to get closer to optimal
   if (currentDistance > threshold) {
-    console.log(`🔥 Too warm (${updated.coreCLO.toFixed(2)} CLO, optimal: ${optimal.toFixed(2)}). Looking for item to remove...`);
-
     // Build list of removable items (no base layers)
     const removableItems = [];
 
@@ -955,7 +969,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
         if (idx !== -1) {
           zoneArray.splice(idx, 1);
           updated.coreCLO = newCoreCLO;
-          console.log(`❄️ Auto-removed ${item.name} (${clo.toFixed(2)} CLO) to reach optimal warmth`);
           break; // Only remove one item
         }
       }
@@ -964,8 +977,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
 
   // CASE 2: Too cold - add an accessory to get closer to optimal
   if (currentDistance < -threshold) {
-    console.log(`❄️ Too cold (${updated.coreCLO.toFixed(2)} CLO, optimal: ${optimal.toFixed(2)}). Looking for item to add...`);
-
     // Find possible accessories to add (only if zone is empty and allowed)
     const possibleAdds = [];
 
@@ -1014,7 +1025,6 @@ export function replaceItem(currentRecommendation, oldItem, newItem) {
 
       zoneArray.push(item);
       updated.coreCLO += clo;
-      console.log(`🔥 Auto-added ${item.name} (${clo.toFixed(2)} CLO) to reach optimal warmth`);
     }
   }
 

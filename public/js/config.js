@@ -1,7 +1,7 @@
 /**
- * WrapMeApp - Scientific Configuration v1.8.7
- * CLO values based on ASHRAE Standard 55 and ISO 9920
- * Temperature requirements based on UKHSA Cold Weather Plan, NHS, WHO guidelines
+ * WrapMeApp - Configuration v1.8.7
+ * CLO values guided by ASHRAE Standard 55 and ISO 9920 (simplified for practical use)
+ * Temperature requirements informed by UKHSA Cold Weather Plan, NHS, WHO guidelines
  *
  * v1.8.7: Simplified warmth indicator - removed CLO references, added color gradient
  * v1.8.1: Fixed unrealistic CLO requirements for cold weather (0°C and below)
@@ -13,6 +13,13 @@
 export const CLOTHING_ITEMS = {
   // Base Layers (Core)
   base: {
+    'vest': {
+      clo: 0.15,
+      name: 'Vest',
+      file: 'base/vest-underlayer.png',
+      category: 'base',
+      zone: 'core'
+    },
     't-shirt': {
       clo: 0.2,
       name: 'T-shirt',
@@ -38,6 +45,13 @@ export const CLOTHING_ITEMS = {
       clo: 0.35,
       name: 'Thermal top',
       file: 'base/thermal-top.png',
+      category: 'base',
+      zone: 'core'
+    },
+    'thermal-leggings': {
+      clo: 0.15,
+      name: 'Thermal leggings',
+      file: 'base/thermal-leggings.png',
       category: 'base',
       zone: 'core'
     },
@@ -119,16 +133,16 @@ export const CLOTHING_ITEMS = {
       category: 'outer',
       zone: 'core'
     },
-    'winter-coat': {
-      clo: 0.72,
-      name: 'Winter coat',
-      file: 'outer/winter-coat.png',
+    'padded-coat': {
+      clo: 0.62,
+      name: 'Padded coat',
+      file: 'outer/coat.png',
       category: 'outer',
       zone: 'core'
     },
-    'heavy-winter-coat': {
+    'winter-coat': {
       clo: 0.85,
-      name: 'Heavy winter coat',
+      name: 'Winter coat',
       file: 'outer/winter-coat.png',
       category: 'outer',
       zone: 'core'
@@ -251,8 +265,8 @@ export const TEMP_REQUIREMENTS = {
     hands: { min: 0.0, max: 0.05, optimal: 0.0 },
     neck: { min: 0.0, max: 0.05, optimal: 0.05 },
     feet: { min: 0.0, max: 0.04, optimal: 0.0 },
-    riskLevel: 'moderate',
-    alert: 'yellow'
+    riskLevel: 'low',
+    alert: 'green'
   },
   // 5-7°C (UKHSA 6°C threshold)
   5: {
@@ -261,7 +275,7 @@ export const TEMP_REQUIREMENTS = {
     hands: { min: 0.05, max: 0.10, optimal: 0.05 },
     neck: { min: 0.05, max: 0.08, optimal: 0.05 },
     feet: { min: 0.0, max: 0.04, optimal: 0.0 },
-    riskLevel: 'moderate-high',
+    riskLevel: 'moderate',
     alert: 'yellow'
   },
   // 2-5°C
@@ -271,8 +285,8 @@ export const TEMP_REQUIREMENTS = {
     hands: { min: 0.05, max: 0.10, optimal: 0.10 },
     neck: { min: 0.00, max: 0.08, optimal: 0.08 },
     feet: { min: 0.00, max: 0.06, optimal: 0.04 },
-    riskLevel: 'high',
-    alert: 'amber'
+    riskLevel: 'moderate',
+    alert: 'yellow'
   },
   // 0-2°C (Freezing point)
   0: {
@@ -281,8 +295,8 @@ export const TEMP_REQUIREMENTS = {
     hands: { min: 0.05, max: 0.15, optimal: 0.10 },
     neck: { min: 0.05, max: 0.08, optimal: 0.08 },
     feet: { min: 0.04, max: 0.06, optimal: 0.06 },
-    riskLevel: 'very-high',
-    alert: 'amber',
+    riskLevel: 'moderate',
+    alert: 'yellow',
     maxExposure: 45
   },
   // <0°C (Below freezing)
@@ -292,10 +306,22 @@ export const TEMP_REQUIREMENTS = {
     hands: { min: 0.10, max: 0.15, optimal: 0.15 },
     neck: { min: 0.05, max: 0.08, optimal: 0.08 },
     feet: { min: 0.04, max: 0.06, optimal: 0.06 },
-    riskLevel: 'severe',
-    alert: 'red',
+    riskLevel: 'high',
+    alert: 'amber',
     maxExposure: 20,
     warning: 'Severe cold. Minimize outdoor time. High risk of frostbite.'
+  },
+  // -10°C and below (Extreme cold - minimum supported temperature)
+  '-10': {
+    core: { min: 1.6, max: 2.0, optimal: 1.8 },
+    head: { min: 0.10, max: 0.10, optimal: 0.10 },
+    hands: { min: 0.15, max: 0.15, optimal: 0.15 },
+    neck: { min: 0.08, max: 0.08, optimal: 0.08 },
+    feet: { min: 0.06, max: 0.06, optimal: 0.06 },
+    riskLevel: 'severe',
+    alert: 'red',
+    maxExposure: 10,
+    warning: 'Extreme cold. Get inside quick as you can! Frostbite risk within minutes.'
   }
 };
 
@@ -306,11 +332,12 @@ export const ADJUSTMENTS = {
     male: { core: 0.0 }
   },
   age: {
-    infant: { core: 0.25 },      // 0-2: Heat loss 4x faster
-    child: { core: 0.10 },        // 3-12
-    teen: { core: 0.05 },         // 13-17
-    adult: { core: 0.0 },         // 18-64
-    elderly: { core: 0.20 }       // 65+: Reduced thermoregulation
+    infant: { core: 0.25 },        // 0-2: Heat loss 4x faster
+    child: { core: 0.10 },          // 3-12
+    teen: { core: 0.05 },           // 13-17
+    adult: { core: 0.0 },           // 18-64
+    elderly: { core: 0.15 },        // 65-80: Reduced thermoregulation, thinner fat layer
+    'very-elderly': { core: 0.30 }  // 80+: Further metabolic decline, reduced vasoconstriction
   }
 };
 

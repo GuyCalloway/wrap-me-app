@@ -1,6 +1,6 @@
 /**
  * WrapMeApp - Main Application v1.9.2
- * Clean, modular design using scientific calculation engine
+ * Clean, modular design using CLO-guided calculation engine
  *
  * v1.9.2: Redesigned weather button - compact inline "Enter" button
  * v1.9.1: Added change location button for easy location switching
@@ -25,7 +25,8 @@ const state = {
     gender: null,
     temperature: 10,
     location: null,
-    currentRecommendation: null
+    currentRecommendation: null,
+    warmthAdjustment: 0 // -1 = cooler, 0 = normal, +1 = warmer
 };
 
 // Initialize app
@@ -49,6 +50,7 @@ function initializeApp() {
 
     // Load saved preferences
     loadPreferences();
+    loadWarmthPreference();
 }
 
 function attachEventListeners() {
@@ -87,14 +89,15 @@ function attachEventListeners() {
     // Change profile button
     document.getElementById('changeProfileBtn')?.addEventListener('click', changeProfile);
 
+    // Change temperature button
+    document.getElementById('changeTempBtn')?.addEventListener('click', changeTemperature);
+
     // Change location button
     document.getElementById('changeLocationBtn')?.addEventListener('click', changeLocation);
 
+
     // Restart button
     document.getElementById('restartBtn')?.addEventListener('click', restart);
-
-    // Info/Substitutions button
-    document.getElementById('infoBtn')?.addEventListener('click', openSubstitutionsModal);
 
     // Disclaimer link
     document.getElementById('disclaimerLink')?.addEventListener('click', (e) => {
@@ -103,16 +106,10 @@ function attachEventListeners() {
     });
 
     // Modal close buttons
-    document.getElementById('modalCloseBtn')?.addEventListener('click', closeSubstitutionsModal);
     document.getElementById('substituteModalCloseBtn')?.addEventListener('click', closeSubstituteModal);
     document.getElementById('sourcesModalCloseBtn')?.addEventListener('click', closeSourcesModal);
 
     // Modal backdrop clicks
-    const substitutionsModal = document.getElementById('substitutionsModal');
-    substitutionsModal?.addEventListener('click', (e) => {
-        if (e.target === substitutionsModal) closeSubstitutionsModal();
-    });
-
     const substituteModal = document.getElementById('substituteModal');
     substituteModal?.addEventListener('click', (e) => {
         if (e.target === substituteModal) closeSubstituteModal();
@@ -126,12 +123,8 @@ function attachEventListeners() {
     // Escape key to close modals
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            const substitutionsModal = document.getElementById('substitutionsModal');
             const substituteModal = document.getElementById('substituteModal');
             const sourcesModal = document.getElementById('sourcesModal');
-            if (substitutionsModal?.classList.contains('active')) {
-                closeSubstitutionsModal();
-            }
             if (substituteModal?.classList.contains('active')) {
                 closeSubstituteModal();
             }
@@ -193,7 +186,8 @@ function updateTempScreenProfile() {
         'child': '3-12',
         'teen': '13-17',
         'adult': '18-64',
-        'elderly': '65+'
+        'elderly': '65-80',
+        'very-elderly': '80+'
     };
 
     const genderDisplay = {
@@ -202,25 +196,22 @@ function updateTempScreenProfile() {
         'any': ''
     };
 
-    const ageCategoryDisplay = {
-        'infant': 'Infant',
-        'child': 'Child',
-        'teen': 'Teen',
-        'adult': 'Adult',
-        'elderly': 'Elderly'
-    };
-
-    const ageCategory = ageCategoryDisplay[state.ageCategory] || 'Adult';
     const ageRange = ageRanges[state.ageCategory] || '18-64';
     const gender = genderDisplay[state.gender] || '';
 
-    const displayText = gender ? `${ageCategory} ${gender}, ${ageRange}` : `${ageCategory}, ${ageRange}`;
+    const displayText = gender ? `${gender}, ${ageRange}` : ageRange;
     profileText.textContent = displayText;
     profileDisplay?.classList.remove('hidden');
 }
 
 function changeProfile() {
+    // Reset warmth adjustment when changing profile
+    state.warmthAdjustment = 0;
     showScreen('ageScreen');
+}
+
+function changeTemperature() {
+    showScreen('tempScreen');
 }
 
 function changeLocation() {
@@ -363,9 +354,6 @@ async function getWeatherFromAddress() {
         const lat = parseFloat(location.lat);
         const lon = parseFloat(location.lon);
 
-        console.log(`📍 Found location: ${location.display_name}`);
-        console.log(`📍 Coordinates: ${lat}, ${lon}`);
-
         // 2. Get weather data
         await getWeatherFromCoordinates(lat, lon, location.display_name);
 
@@ -385,20 +373,69 @@ async function useCurrentLocation() {
     }
 
     const btn = document.getElementById('locationBtn');
+    const addressInput = document.getElementById('addressInput');
+    const originalPlaceholder = addressInput.placeholder;
+
     btn.style.opacity = '0.6';
+    addressInput.placeholder = 'Getting your location...';
+    addressInput.value = '';
 
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
 
-            console.log(`📍 Current location: ${lat}, ${lon}`);
-
             try {
-                await getWeatherFromCoordinates(lat, lon, 'Your location');
+                // Reverse geocode to get location name
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12&addressdetails=1`,
+                    {
+                        headers: {
+                            'User-Agent': 'WrapMeApp/2.0'
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to get location name');
+                }
+
+                const data = await response.json();
+                const address = data.address;
+
+                // Extract a readable location name (prioritize city/town/village)
+                let locationName = '';
+
+                if (address.city) {
+                    locationName = address.city;
+                } else if (address.town) {
+                    locationName = address.town;
+                } else if (address.village) {
+                    locationName = address.village;
+                } else if (address.suburb) {
+                    locationName = address.suburb;
+                } else if (address.neighbourhood) {
+                    locationName = address.neighbourhood;
+                } else if (address.county) {
+                    locationName = address.county;
+                } else if (address.state) {
+                    locationName = address.state;
+                } else {
+                    // Fallback to coordinates
+                    locationName = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                }
+
+                // Populate the input field with the location name
+                addressInput.value = locationName;
+                addressInput.placeholder = originalPlaceholder;
+
+                // Get weather for this location
+                await getWeatherFromCoordinates(lat, lon, locationName);
             } catch (error) {
-                console.error('Error fetching weather:', error);
-                alert('Unable to get weather data. Please use manual temperature.');
+                console.error('Error:', error);
+                addressInput.placeholder = originalPlaceholder;
+                addressInput.value = '';
+                alert('Unable to get location data. Please enter your address manually.');
             } finally {
                 btn.style.opacity = '1';
             }
@@ -406,6 +443,7 @@ async function useCurrentLocation() {
         (error) => {
             console.error('Geolocation error:', error);
             btn.style.opacity = '1';
+            addressInput.placeholder = originalPlaceholder;
 
             let message = 'Unable to get your location. ';
             switch (error.code) {
@@ -446,8 +484,6 @@ async function getWeatherFromCoordinates(lat, lon, locationName) {
         const actualTemp = Math.round(weatherData.current.temperature_2m);
         const feelsLike = Math.round(weatherData.current.apparent_temperature);
 
-        console.log(`🌡️ Temperature: ${actualTemp}°C (feels like ${feelsLike}°C)`);
-
         // Update state and UI with feels-like temperature
         state.temperature = feelsLike;
         state.location = locationName;
@@ -486,8 +522,6 @@ async function getWeatherFromCoordinates(lat, lon, locationName) {
             }
         }
 
-        console.log(`✅ Weather updated for ${locationName}`);
-
     } catch (error) {
         throw error; // Re-throw to be handled by caller
     }
@@ -505,7 +539,8 @@ async function getRecommendation() {
         const recommendations = getRecommendations(
             state.temperature,
             state.ageCategory,
-            state.gender
+            state.gender,
+            state.warmthAdjustment
         );
 
         // Check if we got any recommendations
@@ -558,20 +593,17 @@ function displayRecommendation(recommendation) {
     // Build recommendations by zone
     let textHtml = '';
 
-    // Warning for high risk
-    if (recommendation.requirements.riskLevel === 'high' || recommendation.requirements.riskLevel === 'very-high' || recommendation.requirements.riskLevel === 'severe') {
+    // Warning for sub-zero temperatures
+    if (state.temperature <= -10) {
+        textHtml += '<div class="warning warning-extreme">';
+        textHtml += '<div class="warning-title">⚠️ Extreme Cold Warning</div>';
+        textHtml += `<div class="warning-text"><strong>Get inside immediately!</strong> At this temperature, frostbite can occur within minutes. No amount of clothing makes extended outdoor exposure safe.</div>`;
+        textHtml += '</div>';
+    } else if (state.temperature < 0) {
         textHtml += '<div class="warning">';
-        textHtml += '<div class="warning-title">Important</div>';
-        textHtml += `<div class="warning-text">`;
-        if (recommendation.requirements.maxExposure) {
-            textHtml += `Maximum outdoor time: ${recommendation.requirements.maxExposure} minutes. `;
-        }
-        if (recommendation.requirements.warning) {
-            textHtml += recommendation.requirements.warning;
-        } else {
-            textHtml += 'Take care in cold weather.';
-        }
-        textHtml += `</div></div>`;
+        textHtml += '<div class="warning-title">Cold Weather Warning</div>';
+        textHtml += `<div class="warning-text">Minimize outdoor time. High risk of frostbite and hypothermia.</div>`;
+        textHtml += '</div>';
     }
 
     // Core layers
@@ -588,10 +620,13 @@ function displayRecommendation(recommendation) {
             }
         });
 
-        // Base Layer
+        // Base Layers
         if (coreByCategory.base.length > 0) {
             textHtml += '<div class="layer-section">';
-            textHtml += '<h3 class="layer-heading">Base Layer</h3>';
+            textHtml += '<div class="layer-heading-wrapper">';
+            textHtml += '<h3 class="layer-heading">Base Layers</h3>';
+            textHtml += '<span class="alternatives-tip">💡 click for alternatives</span>';
+            textHtml += '</div>';
             textHtml += '<ul class="item-list">';
             coreByCategory.base.forEach(item => {
                 textHtml += generateItemWithIcon(item);
@@ -637,13 +672,30 @@ function displayRecommendation(recommendation) {
         accessories.forEach(item => {
             textHtml += generateItemWithIcon(item);
         });
-        textHtml += '</ul></div>';
+        textHtml += '</ul>';
+        textHtml += '</div>';
     }
+
+    // Add layering instruction after all clothing items
+    textHtml += '<div class="layering-info-box">Wear all items together, layered on top of each other</div>';
+
+    // Add calibration slider
+    textHtml += '<div class="warmth-calibration">';
+    textHtml += '<label class="calibration-label">Not quite right?</label>';
+    textHtml += '<input type="range" id="warmthSlider" class="warmth-slider" min="-2" max="2" value="' + state.warmthAdjustment + '" step="1" aria-label="Warmth calibration">';
+    textHtml += '<div class="calibration-scale">';
+    textHtml += '<span class="scale-label">More layers</span>';
+    textHtml += '<span class="scale-label">Less layers</span>';
+    textHtml += '</div>';
+    textHtml += '</div>';
 
     document.getElementById('recommendations').innerHTML = textHtml;
 
     // Attach click handlers to clickable items
     attachItemClickHandlers();
+
+    // Attach calibration slider handler
+    attachCalibrationSlider();
 
     showScreen('resultsScreen');
 }
@@ -653,14 +705,6 @@ function buildWarmthIndicator(recommendation) {
     const optimalCLO = recommendation.requirements.core.optimal;
     const minCLO = recommendation.requirements.core.min;
     const maxCLO = recommendation.requirements.core.max;
-
-    console.log('🌡️ Warmth Indicator:', {
-        currentCLO,
-        optimalCLO,
-        minCLO,
-        maxCLO,
-        difference: currentCLO - optimalCLO
-    });
 
     // Calculate percentages for positioning
     const range = maxCLO - minCLO;
@@ -768,51 +812,78 @@ function updateProfileDisplay() {
         'child': '3-12',
         'teen': '13-17',
         'adult': '18-64',
-        'elderly': '65+'
+        'elderly': '65-80',
+        'very-elderly': '80+'
     };
 
     const genderDisplay = {
         'male': 'Male',
         'female': 'Female',
-        'any': 'Child'
-    };
-
-    const ageCategoryDisplay = {
-        'infant': 'Infant',
-        'child': 'Child',
-        'teen': 'Teen',
-        'adult': 'Adult',
-        'elderly': 'Elderly'
+        'any': ''
     };
 
     const ageRange = ageRanges[state.ageCategory] || '18-64';
-    const gender = genderDisplay[state.gender] || 'Adult';
-    const ageCategory = ageCategoryDisplay[state.ageCategory] || 'Adult';
+    const gender = genderDisplay[state.gender] || '';
 
     document.getElementById('displayAge').textContent = ageRange;
+    document.getElementById('displayGender').textContent = gender || ageRange;
+}
 
-    if (state.gender === 'any') {
-        document.getElementById('displayGender').textContent = ageCategory;
-    } else {
-        document.getElementById('displayGender').textContent = `${ageCategory} ${gender}`;
+// =======================
+// WARMTH CALIBRATION
+// =======================
+
+function attachCalibrationSlider() {
+    const slider = document.getElementById('warmthSlider');
+    if (!slider) return;
+
+    // Refresh recommendations when user releases slider
+    slider.addEventListener('change', (e) => {
+        const newValue = parseInt(e.target.value);
+
+        state.warmthAdjustment = newValue;
+        saveWarmthPreference();
+        refreshRecommendations();
+    });
+}
+
+function saveWarmthPreference() {
+    try {
+        localStorage.setItem('warmthAdjustment', state.warmthAdjustment.toString());
+    } catch (e) {
+        console.log('Could not save warmth preference');
+    }
+}
+
+function loadWarmthPreference() {
+    try {
+        const saved = localStorage.getItem('warmthAdjustment');
+        if (saved !== null) {
+            state.warmthAdjustment = parseInt(saved, 10);
+        }
+    } catch (e) {
+        console.log('Could not load warmth preference');
+    }
+}
+
+function refreshRecommendations() {
+    // Regenerate recommendations with current settings
+    const recommendations = getRecommendations(
+        state.temperature,
+        state.ageCategory,
+        state.gender,
+        state.warmthAdjustment
+    );
+
+    if (recommendations && recommendations.length > 0) {
+        state.currentRecommendation = recommendations[0];
+        displayRecommendation(state.currentRecommendation);
     }
 }
 
 // =======================
 // MODAL FUNCTIONS
 // =======================
-
-function openSubstitutionsModal() {
-    const modal = document.getElementById('substitutionsModal');
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeSubstitutionsModal() {
-    const modal = document.getElementById('substitutionsModal');
-    modal.classList.remove('active');
-    document.body.style.overflow = 'auto';
-}
 
 // =======================
 // ITEM SUBSTITUTION
