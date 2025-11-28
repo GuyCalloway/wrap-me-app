@@ -595,10 +595,6 @@ function displayRecommendation(recommendation) {
     // Update user profile display
     updateProfileDisplay();
 
-    // Build warmth indicator
-    const warmthHtml = buildWarmthIndicator(recommendation);
-    document.getElementById('warmthIndicator').innerHTML = warmthHtml;
-
     // Build recommendations by zone
     let textHtml = '';
 
@@ -611,7 +607,7 @@ function displayRecommendation(recommendation) {
     } else if (state.temperature < 0) {
         textHtml += '<div class="warning">';
         textHtml += '<div class="warning-title">Cold Weather Warning</div>';
-        textHtml += `<div class="warning-text">Minimize outdoor time. High risk of frostbite and hypothermia.</div>`;
+        textHtml += `<div class="warning-text">Minimize outdoor time. Risk of frostbite and hypothermia.</div>`;
         textHtml += '</div>';
     }
 
@@ -634,11 +630,13 @@ function displayRecommendation(recommendation) {
             textHtml += '<div class="layer-section">';
             textHtml += '<div class="layer-heading-wrapper">';
             textHtml += '<h3 class="layer-heading">Base Layers</h3>';
-            textHtml += '<span class="alternatives-tip">💡 click for alternatives</span>';
+            textHtml += '<span class="alternatives-tip">💡 click item of clothing for alternatives</span>';
             textHtml += '</div>';
             textHtml += '<ul class="item-list">';
-            coreByCategory.base.forEach(item => {
-                textHtml += generateItemWithIcon(item);
+            coreByCategory.base.forEach((item, index) => {
+                const isLast = index === coreByCategory.base.length - 1;
+                const isFirst = index === 0;
+                textHtml += generateItemWithIcon(item, isLast, isFirst);
             });
             textHtml += '</ul></div>';
         }
@@ -648,8 +646,10 @@ function displayRecommendation(recommendation) {
             textHtml += '<div class="layer-section">';
             textHtml += '<h3 class="layer-heading">Mid Layers</h3>';
             textHtml += '<ul class="item-list">';
-            coreByCategory.mid.forEach(item => {
-                textHtml += generateItemWithIcon(item);
+            coreByCategory.mid.forEach((item, index) => {
+                const isLast = index === coreByCategory.mid.length - 1;
+                const isFirst = index === 0;
+                textHtml += generateItemWithIcon(item, isLast, isFirst);
             });
             textHtml += '</ul></div>';
         }
@@ -659,8 +659,10 @@ function displayRecommendation(recommendation) {
             textHtml += '<div class="layer-section">';
             textHtml += '<h3 class="layer-heading">Outer Layer</h3>';
             textHtml += '<ul class="item-list">';
-            coreByCategory.outer.forEach(item => {
-                textHtml += generateItemWithIcon(item);
+            coreByCategory.outer.forEach((item, index) => {
+                const isLast = index === coreByCategory.outer.length - 1;
+                const isFirst = index === 0;
+                textHtml += generateItemWithIcon(item, isLast, isFirst);
             });
             textHtml += '</ul></div>';
         }
@@ -678,25 +680,18 @@ function displayRecommendation(recommendation) {
         textHtml += '<div class="layer-section">';
         textHtml += '<h3 class="layer-heading">Accessories</h3>';
         textHtml += '<ul class="item-list">';
-        accessories.forEach(item => {
-            textHtml += generateItemWithIcon(item);
+        accessories.forEach((item, index) => {
+            const isLast = index === accessories.length - 1;
+            const isFirst = index === 0;
+            textHtml += generateItemWithIcon(item, isLast, isFirst);
         });
         textHtml += '</ul>';
         textHtml += '</div>';
     }
 
-    // Add layering instruction after all clothing items
-    textHtml += '<div class="layering-info-box">';
-    textHtml += '<svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">';
-    textHtml += '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>';
-    textHtml += '<path d="M12 16v-4m0-4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
-    textHtml += '</svg>';
-    textHtml += 'Wear all items, layered together, in order';
-    textHtml += '</div>';
-
     // Add calibration slider
     textHtml += '<div class="warmth-calibration">';
-    textHtml += '<label class="calibration-label">Not quite right?</label>';
+    textHtml += '<label class="calibration-label">Not quite right for me?</label>';
     textHtml += '<input type="range" id="warmthSlider" class="warmth-slider" min="-2" max="2" value="' + state.warmthAdjustment + '" step="1" aria-label="Warmth calibration">';
     textHtml += '<div class="calibration-scale">';
     textHtml += '<span class="scale-label">Less layers</span>';
@@ -715,83 +710,19 @@ function displayRecommendation(recommendation) {
     showScreen('resultsScreen');
 }
 
-function buildWarmthIndicator(recommendation) {
-    const currentCLO = recommendation.coreCLO;
-    const optimalCLO = recommendation.requirements.core.optimal;
-    const minCLO = recommendation.requirements.core.min;
-    const maxCLO = recommendation.requirements.core.max;
-
-    // Calculate percentages for positioning
-    const range = maxCLO - minCLO;
-    const currentPercent = ((currentCLO - minCLO) / range) * 100;
-    const optimalPercent = ((optimalCLO - minCLO) / range) * 100;
-
-    // Calculate how far from optimal (-1 = too cold, 0 = optimal, +1 = too warm)
-    const deviation = (currentCLO - optimalCLO) / range;
-
-    // Color gradient: cool blues → green → soft reds
-    let barColor;
-    if (deviation < -0.15) {
-        // Too cold - cool blues
-        barColor = 'linear-gradient(to right, #7ba3cc, #6b93bc)';
-    } else if (deviation > 0.15) {
-        // Too warm - soft reds
-        barColor = 'linear-gradient(to right, #d4a5a5, #c99b9b)';
-    } else {
-        // Just right - green
-        barColor = 'linear-gradient(to right, #a8c5b8, #9fb8aa)';
-    }
-
-    // Determine status text with simple language
-    let statusText = 'Just right';
-    let statusClass = 'status-good';
-    if (currentCLO < optimalCLO - 0.1) {
-        statusText = 'A bit light';
-        statusClass = 'status-under';
-    } else if (currentCLO > optimalCLO + 0.1) {
-        statusText = 'A bit warm';
-        statusClass = 'status-over';
-    }
-    if (Math.abs(currentCLO - optimalCLO) > 0.20) {
-        statusText = currentCLO < optimalCLO ? 'Too light' : 'Too warm';
-        statusClass = currentCLO < optimalCLO ? 'status-cold' : 'status-warm';
-    }
-
-    // Determine label for optimal marker
-    const optimalLabel = state.warmthAdjustment !== 0 ? 'Custom' : 'Optimal';
-
-    return `
-        <div class="warmth-indicator-new">
-            <div class="warmth-header">
-                <div class="warmth-status ${statusClass}">${statusText}</div>
-            </div>
-
-            <div class="warmth-bar-track">
-                <div class="warmth-bar-fill" style="width: ${Math.min(100, Math.max(0, currentPercent))}%; background: ${barColor};"></div>
-                <div class="warmth-optimal-marker" style="left: ${optimalPercent}%;">
-                    <div class="optimal-line"></div>
-                    <div class="optimal-label">${optimalLabel}</div>
-                </div>
-            </div>
-
-            <div class="warmth-scale">
-                <span class="scale-min">Too cold</span>
-                <span class="scale-label">Warmth</span>
-                <span class="scale-max">Too warm</span>
-            </div>
-        </div>
-    `;
-}
-
-function generateItemWithIcon(item) {
+function generateItemWithIcon(item, isLast = false, isFirst = false) {
     let imagePath = `/images/clothing/${item.file}`;
     if (!item.file.includes('scarf')) {
         imagePath = imagePath.replace('.png', '.svg');
     }
 
+    // Add + sign at beginning of line for all items except the first
+    const plusPrefix = isFirst ? '' : '<strong class="plus-sign">+&nbsp;&nbsp;</strong>';
+    const displayText = `${plusPrefix}${item.name}`;
+
     return `
         <li class="item-with-icon clickable-item" data-item-key="${item.key}">
-            <span class="item-text">${item.name} <span class="swap-icon">⇄</span></span>
+            <span class="item-text">${displayText} <span class="swap-icon">⇄</span></span>
             <img
                 src="${imagePath}"
                 alt="${item.name}"
@@ -943,7 +874,7 @@ function showSubstituteModal(itemKey) {
     if (!itemToReplace) return;
 
     // Find substitutes
-    const substitutes = findSubstitutes(state.currentRecommendation, itemToReplace);
+    const substitutes = findSubstitutes(state.currentRecommendation, itemToReplace, state.temperature);
 
     // Update modal title
     document.getElementById('substituteModalTitle').textContent = `Replace ${itemToReplace.name}`;
@@ -1005,7 +936,7 @@ function handleSubstitution(oldItemKey, newItemKey) {
     }
 
     // Find new item from substitutes list
-    const substitutes = findSubstitutes(state.currentRecommendation, oldItem);
+    const substitutes = findSubstitutes(state.currentRecommendation, oldItem, state.temperature);
     const newItem = substitutes.find(item => item.key === newItemKey);
     if (!newItem) return;
 

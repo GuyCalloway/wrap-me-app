@@ -55,24 +55,18 @@ export const CLOTHING_ITEMS = {
       category: 'base',
       zone: 'core'
     },
+    'pyjama-bottoms': {
+      clo: 0.3,
+      name: 'Pyjama bottoms',
+      file: 'base/pyjama-bottoms.png',
+      category: 'base',
+      zone: 'core',
+      tempRestriction: { max: 0 }  // Only suggest below 0°C
+    },
   },
 
   // Mid Layers (Core)
   mid: {
-    'vest-top': {
-      clo: 0.13,
-      name: 'Vest-top',
-      file: 'base/vest.png',
-      category: 'mid',
-      zone: 'core'
-    },
-    'light-cardigan': {
-      clo: 0.2,
-      name: 'Light cardigan',
-      file: 'mid/cardigan.png',
-      category: 'mid',
-      zone: 'core'
-    },
     'cardigan': {
       clo: 0.25,
       name: 'Cardigan',
@@ -87,13 +81,6 @@ export const CLOTHING_ITEMS = {
       category: 'mid',
       zone: 'core'
     },
-    'turtleneck': {
-      clo: 0.29,
-      name: 'Turtleneck',
-      file: 'mid/turtleneck.png',
-      category: 'mid',
-      zone: 'core'
-    },
     'hoodie': {
       clo: 0.34,
       name: 'Hoodie',
@@ -102,7 +89,7 @@ export const CLOTHING_ITEMS = {
       zone: 'core'
     },
     'fleece': {
-      clo: 0.37,
+      clo: 0.42,
       name: 'Fleece',
       file: 'mid/fleece.png',
       category: 'mid',
@@ -116,7 +103,7 @@ export const CLOTHING_ITEMS = {
       zone: 'core'
     },
     'thick-shirt': {
-      clo: 0.35,
+      clo: 0.28,
       name: 'Thick shirt',
       file: 'mid/thick-shirt.svg',
       category: 'mid',
@@ -221,6 +208,13 @@ export const CLOTHING_ITEMS = {
       file: 'accessories/thick-scarf.png',
       category: 'accessory',
       zone: 'neck'
+    },
+    'neck-warmer': {
+      clo: 0.06,
+      name: 'Neck warmer',
+      file: 'accessories/scarf.png',
+      category: 'accessory',
+      zone: 'neck'
     }
   },
 
@@ -237,6 +231,13 @@ export const CLOTHING_ITEMS = {
       clo: 0.06,
       name: 'Thermal socks',
       file: 'accessories/thermal-socks.png',
+      category: 'accessory',
+      zone: 'feet'
+    },
+    'double-socks': {
+      clo: 0.05,
+      name: 'Double up on socks!',
+      file: 'accessories/thick-socks.png',
       category: 'accessory',
       zone: 'feet'
     }
@@ -270,7 +271,7 @@ export const TEMP_REQUIREMENTS = {
     core: { min: 0.6, max: 0.9, optimal: 0.85 },
     head: { min: 0.0, max: 0.05, optimal: 0.05 },
     hands: { min: 0.0, max: 0.05, optimal: 0.0 },
-    neck: { min: 0.0, max: 0.05, optimal: 0.05 },
+    neck: { min: 0.0, max: 0.03, optimal: 0.02 },
     feet: { min: 0.0, max: 0.04, optimal: 0.0 },
     riskLevel: 'low',
     alert: 'green'
@@ -278,9 +279,9 @@ export const TEMP_REQUIREMENTS = {
   // 5-7°C (UKHSA 6°C threshold)
   5: {
     core: { min: 0.8, max: 1.0, optimal: 0.9 },
-    head: { min: 0.05, max: 0.08, optimal: 0.05 },
-    hands: { min: 0.05, max: 0.10, optimal: 0.05 },
-    neck: { min: 0.05, max: 0.08, optimal: 0.05 },
+    head: { min: 0.02, max: 0.08, optimal: 0.04 },
+    hands: { min: 0.00, max: 0.06, optimal: 0.03 },
+    neck: { min: 0.00, max: 0.06, optimal: 0.04 },
     feet: { min: 0.0, max: 0.04, optimal: 0.0 },
     riskLevel: 'moderate',
     alert: 'yellow'
@@ -364,14 +365,14 @@ export const ITEM_FREQUENCY = {
   'long-sleeve-top': 0.9,      // Common household item
   'jumper': 1.2,               // Very common household item
   'coat': 0.8,
-  'vest-top': 0.6,
-  'cardigan': 0.5,
+  'cardigan': 0.2,
   'hoodie': 0.9,               // Common household item - boosted slightly
   'thermal-top': 0.5,
+  'thermal-leggings': 0.4,
+  'pyjama-bottoms': 0.6,
   'fleece': 1.0,
-  'thick-jumper': 0.9,
-  'thick-shirt': 0.8,
-  'turtleneck': 0.5,
+  'thick-jumper': 0.7,
+  'thick-shirt': 0.6,
   'light-jacket': 0.7,
   'winter-coat': 0.6,
   'heavy-winter-coat': 0.4,
@@ -383,6 +384,8 @@ export const ITEM_FREQUENCY = {
   'mittens': 0.5,
   'scarf': 0.8,
   'thick-scarf': 0.6,
+  'neck-warmer': 0.7,
   'thick-socks': 0.6,
-  'thermal-socks': 0.5
+  'thermal-socks': 0.5,
+  'double-socks': 0.9
 };

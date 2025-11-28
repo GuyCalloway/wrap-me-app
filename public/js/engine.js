@@ -138,12 +138,25 @@ export function getAdjustedRequirements(temp, ageCategory, gender) {
 
 /**
  * Get all clothing items as flat array
+ * Filters items based on temperature restrictions
  */
-function getAllItems() {
+function getAllItems(temp = 10) {
   const items = [];
   for (const zone in CLOTHING_ITEMS) {
     for (const key in CLOTHING_ITEMS[zone]) {
-      items.push({ key, ...CLOTHING_ITEMS[zone][key] });
+      const item = { key, ...CLOTHING_ITEMS[zone][key] };
+
+      // Check temperature restrictions
+      if (item.tempRestriction) {
+        if (item.tempRestriction.max !== undefined && temp > item.tempRestriction.max) {
+          continue; // Skip this item if temp is above max
+        }
+        if (item.tempRestriction.min !== undefined && temp < item.tempRestriction.min) {
+          continue; // Skip this item if temp is below min
+        }
+      }
+
+      items.push(item);
     }
   }
   return items;
@@ -154,7 +167,7 @@ function getAllItems() {
  * Uses dynamic programming / knapsack approach
  */
 export function findCombinations(requirements, maxCombinations = 50, temp = 10, ageCategory = 'adult') {
-  const allItems = getAllItems();
+  const allItems = getAllItems(temp);
   const combinations = [];
 
   // Separate items by zone
@@ -329,125 +342,135 @@ function generateZoneCombinations(items, requirement, temp = 10, ageCategory = '
   return combinations.slice(0, 30);
 }
 
+// ===================================
+// VALIDATION HELPER FUNCTIONS
+// ===================================
+
 /**
- * Validate combination for practical wearability
- * Returns true if combination makes sense, false if impractical
- * If debug=true, returns {isValid, reason}
+ * Calculate temperature-scaled max mid-layer CLO for outer layers
  */
-export function isValidCombination(combination, debug = false, temp = 10, ageCategory = 'adult') {
-  const core = combination.core;
-
-  const reject = (reason) => debug ? { isValid: false, reason } : false;
-  const accept = () => debug ? { isValid: true } : true;
-
-  // Determine max base layers based on temperature and age
-  const isVulnerable = ['elderly', 'very-elderly', 'infant', 'child'].includes(ageCategory);
-  const isCold = temp <= 5;
-  const maxBaseLayers = (isVulnerable && isCold) ? 3 : 2;
-
-  // Get CLO values by category
-  const baseCLO = core.filter(item => item.category === 'base').reduce((sum, item) => sum + item.clo, 0);
-  const midCLO = core.filter(item => item.category === 'mid').reduce((sum, item) => sum + item.clo, 0);
-  const outerCLO = core.filter(item => item.category === 'outer').reduce((sum, item) => sum + item.clo, 0);
-
-  const midItems = core.filter(item => item.category === 'mid');
-  const outerItems = core.filter(item => item.category === 'outer');
-
-  // Rule 1: Heavy outer layer + heavy mid layers = impractical (temperature-dependent)
-  // If you have a winter coat (0.49+), you shouldn't need too many heavy mid layers
-  // BUT at severe cold, allow more mid-layers for survival
-  // SMOOTH SCALING: Linear interpolation from 1.00 at -15°C to 0.50 at 15°C
+function getMaxMidCLOForOuter(outerCLO, temp) {
+  // Heavy coat (0.49+): Allow 1.00 CLO at -15°C, scaling down to 0.50 at 15°C
   if (outerCLO >= 0.49) {
-    // Formula: maxMidCLO = 1.00 - ((temp + 15) / 30) * 0.50
-    // This gives: -15°C→1.00, -5°C→0.83, 0°C→0.75, 5°C→0.67, 10°C→0.58, 15°C→0.50
-    const maxMidCLO = Math.max(0.50, Math.min(1.00, 1.00 - ((temp + 15) / 30) * 0.50));
-
-    if (midCLO > maxMidCLO) {
-      return reject('Heavy coat + excessive mid-layers');
-    }
+    return Math.max(0.50, Math.min(1.00, 1.00 - ((temp + 15) / 30) * 0.50));
   }
-
-  // Rule 2: Regular coat (0.37-0.48) should not be combined with excessive mid-layers
-  // SMOOTH SCALING: Linear interpolation from 0.95 at -15°C to 0.55 at 15°C
-  if (outerCLO >= 0.37 && outerCLO < 0.49) {
-    // Formula: maxMidCLO = 0.95 - ((temp + 15) / 30) * 0.40
-    // This gives: -15°C→0.95, -5°C→0.82, 0°C→0.75, 5°C→0.68, 10°C→0.62, 15°C→0.55
-    const maxMidCLO = Math.max(0.55, Math.min(0.95, 0.95 - ((temp + 15) / 30) * 0.40));
-
-    if (midCLO > maxMidCLO) {
-      return reject('Regular coat + excessive mid-layers');
-    }
+  // Regular coat (0.37-0.48): Allow 0.95 CLO at -15°C, scaling down to 0.55 at 15°C
+  if (outerCLO >= 0.37) {
+    return Math.max(0.55, Math.min(0.95, 0.95 - ((temp + 15) / 30) * 0.40));
   }
+  return Infinity; // No limit for lighter outer layers
+}
 
-  // Rule 3: Light jacket (0.25) with minimal mid-layers doesn't make sense in cold weather
-  // This is actually okay - the algorithm should only suggest this for warmer temps
+/**
+ * Check if combination has redundant mid-layer items
+ */
+function hasRedundantMidLayers(midItems) {
+  const hasJumper = midItems.some(item => item.key === 'jumper');
+  const hasThickJumper = midItems.some(item => item.key === 'thick-jumper');
+  return hasJumper && hasThickJumper;
+}
 
-  // Rule 4: Avoid multiple heavy mid-layers without ANY outer layer in cold weather
-  // If you have hoodie (0.34) + thick jumper (0.36) = 0.70, you need SOME outer for wind protection
-  // SMOOTH SCALING: Threshold increases as temperature drops
-  // Formula: threshold = 0.50 + (2 - temp) * 0.05 (only applies when temp < 2°C)
-  // This gives: 2°C→0.50, 0°C→0.60, -5°C→0.85, -10°C→1.10
-  // Fixed: Check for NO outer (0 CLO) rather than light outer (< 0.37 CLO)
-  if (temp < 2) {
-    const threshold = 0.50 + (2 - temp) * 0.05;
-    if (midCLO > threshold && outerCLO === 0) {
-      return reject('Heavy mid-layers without proper outer');
-    }
-  }
-
-  // Rule 5: Check for specific impractical combinations
-  const midNames = midItems.map(item => item.key);
-  const outerNames = outerItems.map(item => item.key);
-
-  // Don't combine thick jumper + fleece + hoodie (too bulky)
+/**
+ * Check if combination has too many heavy mid-layers
+ */
+function hasTooManyHeavyMidLayers(midItems) {
   const heavyMids = midItems.filter(item =>
     ['thick-jumper', 'fleece', 'hoodie'].includes(item.key)
   );
-  if (heavyMids.length > 2) {
-    return reject('Too many heavy mid-layers (bulky)');
-  }
+  return heavyMids.length > 2;
+}
 
-  // Rule 6: REMOVED - Winter coat combinations are fine in severe cold
-  // Winter coat + thick jumper + hoodie/fleece is reasonable for -2°C weather
-
-  // Rule 7: Don't stack 3+ mid layers with any outer layer
-  if (midItems.length >= 3 && outerItems.length >= 1) {
-    // Exception: If they're all light (vest, cardigan), it's okay
-    const allLightMids = midItems.every(item => item.clo <= 0.20);
-    if (!allLightMids) {
-      return reject('3+ mid-layers with outer (too bulky)');
-    }
-  }
-
-  // Rule 8: Maximum 2-3 base layers depending on vulnerability and temperature
-  // Allow layering thermal ON TOP of t-shirt for extra warmth
-  // For vulnerable populations in cold weather (≤5°C), allow up to 3 base layers
-  const baseItems = core.filter(item => item.category === 'base');
+/**
+ * Check if base layer configuration is valid
+ */
+function hasValidBaseLayers(baseItems, maxBaseLayers) {
   if (baseItems.length > maxBaseLayers) {
-    return reject(`Too many base layers (>${maxBaseLayers})`);
+    return { valid: false, reason: `Too many base layers (>${maxBaseLayers})` };
   }
 
   // If 2+ base layers, one MUST be t-shirt
   if (baseItems.length >= 2) {
     const hasTShirt = baseItems.some(item => item.key === 't-shirt');
     if (!hasTShirt) {
-      return reject(`${baseItems.length} base layers without t-shirt foundation`);
+      return { valid: false, reason: `${baseItems.length} base layers without t-shirt foundation` };
     }
   }
 
-  // Rule 9: Maximum TWO mid-layers total
-  // Wearing 3+ mid-layers is excessive and restrictive
-  if (midItems.length > 2) {
-    return reject('Too many mid-layers (>2)');
+  // Vest cannot be worn alone - needs a top layer (t-shirt, long-sleeve, etc.)
+  const hasVest = baseItems.some(item => item.key === 'tank-top');
+  if (hasVest && baseItems.length === 1) {
+    return { valid: false, reason: 'Vest cannot be worn alone (needs t-shirt or long-sleeve top)' };
   }
 
-  // Rule 10: Maximum ONE outer layer
-  // You don't wear multiple coats/jackets
-  if (outerItems.length > 1) {
-    return reject('Multiple outer layers');
+  return { valid: true };
+}
+
+// ===================================
+// MAIN VALIDATION FUNCTION
+// ===================================
+
+/**
+ * Validate combination for practical wearability
+ * Returns true if valid, false if not (or {isValid, reason} if debug=true)
+ */
+export function isValidCombination(combination, debug = false, temp = 10, ageCategory = 'adult') {
+  const reject = (reason) => debug ? { isValid: false, reason } : false;
+  const accept = () => debug ? { isValid: true } : true;
+
+  // Extract items by category
+  const baseItems = combination.core.filter(item => item.category === 'base');
+  const midItems = combination.core.filter(item => item.category === 'mid');
+  const outerItems = combination.core.filter(item => item.category === 'outer');
+
+  // Calculate CLO values
+  const midCLO = midItems.reduce((sum, item) => sum + item.clo, 0);
+  const outerCLO = outerItems.reduce((sum, item) => sum + item.clo, 0);
+
+  // Determine max base layers
+  const isVulnerable = ['elderly', 'very-elderly', 'infant', 'child'].includes(ageCategory);
+  const maxBaseLayers = (isVulnerable && temp <= 5) ? 3 : 2;
+
+  // Validate layer counts
+  if (outerItems.length > 1) return reject('Multiple outer layers');
+  if (midItems.length > 2) return reject('Too many mid-layers (>2)');
+
+  // Validate base layers
+  const baseValidation = hasValidBaseLayers(baseItems, maxBaseLayers);
+  if (!baseValidation.valid) return reject(baseValidation.reason);
+
+  // Check for redundant items
+  if (hasRedundantMidLayers(midItems)) {
+    return reject('Jumper and thick-jumper together (redundant)');
   }
 
-  return accept(); // Combination is valid
+  // Check for too many heavy mid-layers
+  if (hasTooManyHeavyMidLayers(midItems)) {
+    return reject('Too many heavy mid-layers (bulky)');
+  }
+
+  // Validate outer + mid layer combinations
+  const maxMidCLO = getMaxMidCLOForOuter(outerCLO, temp);
+  if (midCLO > maxMidCLO) {
+    return reject('Excessive mid-layers for outer layer');
+  }
+
+  // Check for heavy mids without outer in cold weather
+  if (temp < 2 && outerCLO === 0) {
+    const threshold = 0.50 + (2 - temp) * 0.05;
+    if (midCLO > threshold) {
+      return reject('Heavy mid-layers need outer layer in cold weather');
+    }
+  }
+
+  // Don't stack 3+ mid layers with outer (unless all light)
+  if (midItems.length >= 3 && outerItems.length >= 1) {
+    const allLightMids = midItems.every(item => item.clo <= 0.20);
+    if (!allLightMids) {
+      return reject('Too many mid-layers with outer (bulky)');
+    }
+  }
+
+  return accept();
 }
 
 /**
@@ -637,7 +660,7 @@ function selectDiverseCombinations(validCombinations) {
  * These are items most people already own: t-shirt, jumper, hoodie, fleece, coat, thick jumper, thick shirt, light jacket
  */
 function countCommonItems(combination) {
-  const veryCommonItems = ['t-shirt', 'jumper', 'hoodie', 'fleece', 'coat', 'long-sleeve-top', 'thick-jumper', 'thick-shirt', 'light-jacket'];
+  const veryCommonItems = ['t-shirt', 'jumper', 'hoodie', 'fleece', 'coat', 'long-sleeve-top', 'light-jacket'];
   let count = 0;
 
   const allItems = [
@@ -746,12 +769,12 @@ export function getRecommendations(temp, ageCategory, gender, warmthAdjustment =
  * Find substitutes for a specific item
  * Returns items from any zone that provide similar warmth
  */
-export function findSubstitutes(currentRecommendation, itemToReplace) {
+export function findSubstitutes(currentRecommendation, itemToReplace, temp = 10) {
   const { requirements } = currentRecommendation;
   const zone = itemToReplace.zone;
 
-  // Get all items
-  const allItems = getAllItems();
+  // Get all items (filtered by temperature)
+  const allItems = getAllItems(temp);
 
   // For core items, only substitute with other core items (same category logic)
   if (zone === 'core') {
@@ -783,28 +806,38 @@ export function findSubstitutes(currentRecommendation, itemToReplace) {
     return validSubstitutes.slice(0, 5);
   }
 
-  // For accessories (head, hands, neck, feet), allow cross-zone substitution
-  // Find items with similar CLO values from any accessory zone
-  const accessoryZones = ['head', 'hands', 'neck', 'feet'];
-  const accessories = allItems.filter(item =>
-    accessoryZones.includes(item.zone) &&
-    item.key !== itemToReplace.key
+  // For accessories (head, hands, neck, feet), only allow like-for-like substitution
+  // Define accessory groups that can be exchanged
+  const accessoryGroups = {
+    // Neck items: scarf with balaclava and neck warmer
+    'scarf': ['thick-scarf', 'balaclava', 'neck-warmer'],
+    'thick-scarf': ['scarf', 'balaclava', 'neck-warmer'],
+    'balaclava': ['scarf', 'thick-scarf', 'neck-warmer'],
+    'neck-warmer': ['scarf', 'thick-scarf', 'balaclava'],
+
+    // Head items: hat with warm-hat
+    'hat': ['warm-hat'],
+    'warm-hat': ['hat'],
+
+    // Hand items: gloves with mittens and insulated-gloves
+    'gloves': ['insulated-gloves', 'mittens'],
+    'insulated-gloves': ['gloves', 'mittens'],
+    'mittens': ['gloves', 'insulated-gloves'],
+
+    // Feet items: thermal-socks with "double up on socks"
+    'thermal-socks': ['thick-socks', 'double-socks'],
+    'thick-socks': ['thermal-socks', 'double-socks']
+  };
+
+  // Get allowed substitutes for this item
+  const allowedKeys = accessoryGroups[itemToReplace.key] || [];
+
+  // Find matching items from the allowed list
+  const validSubstitutes = allItems.filter(item =>
+    allowedKeys.includes(item.key)
   );
 
-  // Filter by similar CLO value (within 0.05 CLO)
-  const similarCLO = accessories.filter(item => {
-    const cloDiff = Math.abs(item.clo - itemToReplace.clo);
-    return cloDiff <= 0.05; // Similar warmth
-  });
-
-  // Sort by exact CLO match
-  similarCLO.sort((a, b) => {
-    const aDiff = Math.abs(a.clo - itemToReplace.clo);
-    const bDiff = Math.abs(b.clo - itemToReplace.clo);
-    return aDiff - bDiff;
-  });
-
-  return similarCLO.slice(0, 5); // Return top 5 substitutes
+  return validSubstitutes;
 }
 
 /**
